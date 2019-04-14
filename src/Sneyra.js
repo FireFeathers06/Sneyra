@@ -1,5 +1,5 @@
 const { Client } = require('klasa');
-const config = require('../config.js');
+const { token } = require('../config');
 
 // Load custom structures
 require('./lib/extensions/SneyraGuild');
@@ -9,7 +9,7 @@ Client.defaultPermissionLevels
 	.add(5, (msg) => msg.member && msg.guild.settings.dj && msg.member.roles.has(msg.guild.settings.dj), { fetch: true })
 	.add(6, (msg) => msg.member
 		&& ((msg.guild.settings.administrator && msg.member.roles.has(msg.guild.settings.administrator))
-            || msg.member.permissions.has('MANAGE_GUILD')), { fetch: true });
+						|| msg.member.permissions.has('MANAGE_GUILD')), { fetch: true });
 
 new Client({
 	disabledEvents: [
@@ -29,4 +29,4 @@ new Client({
 	prefix: 'm!',
 	presence: { activity: { name: 'Sneyra, help', type: 'LISTENING' } },
 	regexPrefix: /^(hey )?sneyra(,|!)/i
-}).login(config.token);
+}).login(token);

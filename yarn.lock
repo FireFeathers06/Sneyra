@@ -207,9 +207,14 @@ delayed-stream@~1.0.0:
   resolved "https://registry.yarnpkg.com/delayed-stream/-/delayed-stream-1.0.0.tgz#df3ae199acadfb7d440aaae0b29e2272b24ec619"
   integrity sha1-3zrhmayt+31ECqrgsp4icrJOxhk=
 
+discord.js-lavalink@mrjacz/discord.js-lavalink:
+  version "2.2.2"
+  resolved "https://codeload.github.com/mrjacz/discord.js-lavalink/tar.gz/916d99f1928f543b3bdfdf9d11d59608526d01a4"
+  dependencies:
+    ws "^6.1.4"
+
 "discord.js@github:discordjs/discord.js":
   version "12.0.0-dev"
-  uid "8da141637cc43fdfa592225c121063159b716bac"
   resolved "https://codeload.github.com/discordjs/discord.js/tar.gz/8da141637cc43fdfa592225c121063159b716bac"
   dependencies:
     form-data "^2.3.3"
@@ -239,7 +244,6 @@ escape-string-regexp@^1.0.5:
 
 "eslint-config-klasa@github:dirigeants/klasa-lint":
   version "0.0.1"
-  uid "2a808ddc9e94c9dff58e90372d9cedd02cb0ff84"
   resolved "https://codeload.github.com/dirigeants/klasa-lint/tar.gz/2a808ddc9e94c9dff58e90372d9cedd02cb0ff84"
 
 eslint-scope@^4.0.3:
@@ -545,7 +549,6 @@ json-stable-stringify-without-jsonify@^1.0.1:
 
 "klasa@github:dirigeants/klasa":
   version "0.5.0-dev"
-  uid "4114309bb521b15e4656f8904c59331e457b809e"
   resolved "https://codeload.github.com/dirigeants/klasa/tar.gz/4114309bb521b15e4656f8904c59331e457b809e"
   dependencies:
     fs-nextra "^0.4.3"
@@ -979,6 +982,13 @@ ws@^6.1.3:
   version "6.2.0"
   resolved "https://registry.yarnpkg.com/ws/-/ws-6.2.0.tgz#13806d9913b2a5f3cbb9ba47b563c002cbc7c526"
   integrity sha512-deZYUNlt2O4buFCa3t5bKLf8A7FPP/TVjwOeVNpw818Ma5nk4MLXls2eoEGS39o8119QIYxTrTDoPQ5B/gTD6w==
+  dependencies:
+    async-limiter "~1.0.0"
+
+ws@^6.1.4:
+  version "6.2.1"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-6.2.1.tgz#442fdf0a47ed64f59b6a5d8ff130f4748ed524fb"
+  integrity sha512-GIyAXC2cB7LjvpgMt9EKS2ldqr0MTrORaleiOno6TweZ6r3TKtoFQWay/2PceJ3RuBasOHzXNn5Lrw1X0bEjqA==
   dependencies:
     async-limiter "~1.0.0"
 

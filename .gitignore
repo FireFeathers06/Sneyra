@@ -4,3 +4,5 @@ src/bwd/provider/
 config.js
 *.heapsnapshot
 *.log
+*.jar
+*.yml

@@ -15,8 +15,8 @@ module.exports = class extends MusicCommand {
 		if (music.voiceChannel.members.size > 4)
 			if (!await msg.hasAtLeastPermissionLevel(5)) throw 'You can\'t execute this command when there are over 4 members. You must be at least a Dj Member.';
 
+		msg.sendMessage(`🗑 Pruned ${music.queue.length}`);
 		music.prune();
-		return msg.sendMessage(`🗑 Pruned ${music.queue.length}`);
 	}
 
 };

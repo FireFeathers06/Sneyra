@@ -10,6 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "discord.js": "github:discordjs/discord.js",
+    "discord.js-lavalink": "mrjacz/discord.js-lavalink",
     "fs-nextra": "^0.4.5",
     "klasa": "github:dirigeants/klasa",
     "node-opus": "^0.3.1",

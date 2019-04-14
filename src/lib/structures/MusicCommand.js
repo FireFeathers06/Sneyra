@@ -18,6 +18,4 @@ class MusicCommand extends Command {
 
 }
 
-MusicCommand.YOUTUBE_REGEXP = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/\S*(?:(?:\/e(?:mbed)?)?\/|watch\/?\?(?:\S*?&?v=))|youtu\.be\/)([\w-]{11})(?:[^\w-]|$)/;
-
 module.exports = MusicCommand;

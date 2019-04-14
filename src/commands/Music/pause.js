@@ -14,7 +14,7 @@ module.exports = class extends MusicCommand {
 		if (!music.playing) throw 'I am not playing anything...';
 
 		music.pause();
-		return msg.sendMessage('⏸ Paused');
+		msg.sendMessage('⏸ Paused');
 	}
 
 };

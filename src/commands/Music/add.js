@@ -1,8 +1,4 @@
-const { MusicCommand, config: { GOOGLE_SEARCH } } = require('../../index');
-const fetch = require('node-fetch');
-const qs = require('querystring');
-
-const URL = 'https://www.googleapis.com/youtube/v3/search?';
+const { MusicCommand } = require('../../index');
 
 module.exports = class extends MusicCommand {
 
@@ -14,29 +10,16 @@ module.exports = class extends MusicCommand {
 	}
 
 	async run(msg, [url]) {
-		const youtubeURL = await this.getURL(url);
-		if (!youtubeURL) throw 'Not found.';
-
 		const { music } = msg.guild;
-		const song = await music.add(msg.author, youtubeURL);
 
-		return msg.sendMessage(`🎵 Added **${song.title}** to the queue 🎶`);
-	}
+		try {
+			const [song] = await music.add(msg.author, url);
 
-	async getURL(url) {
-		const id = MusicCommand.YOUTUBE_REGEXP.exec(url);
-		if (id) return `https://youtu.be/${id[1]}`;
-
-		const query = qs.stringify({
-			part: 'snippet',
-			q: url,
-			key: GOOGLE_SEARCH
-		});
-		const { items } = await fetch(URL + query)
-			.then(result => result.json());
-
-		const video = items.find(item => item.id.kind === 'youtube#video');
-		return video ? `https://youtu.be/${video.id.videoId}` : null;
+			if (!song) throw `No songs found for \`${url}\``;
+			else msg.sendMessage(`🎵 Added **${song.info.title}** to the queue 🎶`);
+		} catch (error) {
+			throw `No songs found for \`${url}\``;
+		}
 	}
 
 };

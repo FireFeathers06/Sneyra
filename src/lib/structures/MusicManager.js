@@ -1,19 +1,7 @@
-const { util: { codeBlock } } = require('klasa');
-const ytdl = require('ytdl-core');
-const ytdlDiscord = require('ytdl-core-discord');
-const getInfoAsync = require('util').promisify(ytdl.getInfo);
+const fetch = require('node-fetch');
+const { URLSearchParams } = require('url');
 
 class MusicManager {
-
-	/**
-	 * @typedef {Object} MusicManagerSong
-	 * @property {string} url The video id
-	 * @property {string} title The title of the video
-	 * @property {KlasaUser | string} user The user that requested this song
-	 * @property {number} loudness The loudness for this song, reserved for future
-	 * @property {number} seconds The seconds this video lasts
-	 * @property {boolean} opus Whether this video has an Opus stream available or not
-	 */
 
 	constructor(guild) {
 		/**
@@ -46,75 +34,12 @@ class MusicManager {
 		 */
 		this.queue = [];
 
-		/**
-		 * The Channel instance where music commands are played at
-		 * @since 1.0.0
-		 * @type {TextChannel}
-		 */
-		this.channel = null;
+		this.voiceChannel = null;
+		this.player = null;
 
-		/**
-		 * Whether autoplayer is enabled or not
-		 * @since 1.0.0
-		 * @type {boolean}
-		 */
-		this.autoplay = false;
-
-		/**
-		 * The next song id for autoplayer
-		 * @since 1.0.0
-		 * @type {?string}
-		 */
-		this._next = null;
-	}
-
-	get remaining() {
-		const { playing, dispatcher } = this;
-		if (!playing) return null;
-		const [song] = this.queue;
-		return (song.seconds * 1000) - dispatcher.streamTime;
-	}
-
-	/**
-	 * The next video
-	 * @since 1.0.0
-	 * @type {?string}
-	 * @readonly
-	 */
-	get next() {
-		return this._next ? `https://youtu.be/${this._next}` : null;
-	}
-
-	/**
-	 * The VoiceChannel Sneyra is connected to
-	 * @since 1.0.0
-	 * @type {?VoiceChannel}
-	 * @readonly
-	 */
-	get voiceChannel() {
-		return this.guild.me.voice.channel;
-	}
-
-	/**
-	 * The VoiceChannel's connection
-	 * @since 1.0.0
-	 * @type {?VoiceConnection}
-	 * @readonly
-	 */
-	get connection() {
-		const { voiceChannel } = this;
-		return (voiceChannel && voiceChannel.connection) || null;
-	}
-
-	/**
-	 * The VoiceConnection's dispatcher
-	 * @since 1.0.0
-	 * @type {?StreamDispatcher}
-	 * @readonly
-	 */
-	get dispatcher() {
-		const { connection } = this;
-		return (connection && connection.dispatcher) || null;
+		this.musicStart = null;
+		this.musicPauseAll = null;
+		this.musicPause = null;
 	}
 
 	/**
@@ -134,8 +59,8 @@ class MusicManager {
 	 * @readonly
 	 */
 	get paused() {
-		const { dispatcher } = this;
-		return dispatcher ? dispatcher.paused : null;
+		const { player } = this;
+		return player ? player.paused : null;
 	}
 
 	/**
@@ -145,7 +70,58 @@ class MusicManager {
 	 * @readonly
 	 */
 	get idling() {
-		return !this.queue.length || !this.dispatcher;
+		const { player } = this;
+		return !this.queue.length || (player ? !player.playing : null);
+	}
+
+
+	/**
+	 * The current volume
+	 * @since 1.0.0
+	 * @type {?number}
+	 * @readonly
+	 */
+	get volume() {
+		const { player } = this;
+		return player ? player.state.volume : null;
+	}
+
+	/**
+	 * The current playtime of the song
+	 * @since 1.0.0
+	 * @type {?number}
+	 * @readonly
+	 */
+	get playtime() {
+		try {
+			if (this.musicPauseAll && this.musicPause) {
+				return ((new Date()).getTime() - this.musicStart.getTime()) - (this.musicPauseAll + ((new Date()).getTime() - this.musicPause.getTime()));
+			} else if (this.musicPause) {
+				// (now - start) - (now - pause)
+				return ((new Date()).getTime() - this.musicStart.getTime()) - ((new Date()).getTime() - this.musicPause.getTime());
+			} else if (this.musicPauseAll) {
+				// (now - start) - all
+				return ((new Date()).getTime() - this.musicStart.getTime()) - this.musicPauseAll;
+			} else {
+				// (now - start) - (all + (now - pause)
+				return (new Date()).getTime() - this.musicStart.getTime();
+			}
+		} catch (error) {
+			return null;
+		}
+	}
+
+	/**
+	 * The current playtime of the song
+	 * @since 1.0.0
+	 * @type {?number}
+	 * @readonly
+	 */
+	get remaining() {
+		const { player } = this;
+
+		if (player && this.queue.length) return this.queue[0].info.length - this.playtime;
+		return null;
 	}
 
 	/**
@@ -153,41 +129,29 @@ class MusicManager {
 	 * @since 1.0.0
 	 * @param {KlasaUser} user The user that requests this song
 	 * @param {string} url The url to add
-	 * @returns {MusicManagerSong}
+	 * @returns {Promise<SongMetadata>}
 	 */
 	async add(user, url) {
-		const song = await getInfoAsync(url).catch((err) => {
-			this.client.emit('log', err, 'error');
-			throw `Something happened with YouTube URL: ${url}\n${codeBlock('', err)}`;
-		});
+		const node = this.client.lavalink.nodes.first();
 
-		const metadata = {
-			url: song.video_id,
-			title: song.title.replace(/@(here|everyone)/, '@\u200B$1'),
-			requester: user,
-			loudness: song.loudness,
-			seconds: parseInt(song.length_seconds),
-			opus: song.formats.some(format => format.type === 'audio/webm; codecs="opus"')
-		};
+		const params = new URLSearchParams();
+		params.append('identifier', url);
 
-		this.queue.push(metadata);
-		this._next = this.getLink(song.related_videos);
+		try {
+			const metadatas = await fetch(`http://${node.host}:${node.port}/loadtracks?${params.toString()}`, { headers: { Authorization: node.password } })
+				.then(res => res.json())
+				.then(data => data.tracks);
 
-		return metadata;
-	}
+			metadatas.forEach(metadata => this.queue.push({
+				...metadata,
+				requester: user
+			}));
 
-	/**
-	 * Get a link from a playlist, filtering previously played videos
-	 * @since 1.0.0
-	 * @param {Array<Object<*>>} playlist The playlist to check
-	 * @returns {?string}
-	 */
-	getLink(playlist) {
-		for (const song of playlist) {
-			if (!song.id || this.recentlyPlayed.includes(song.id)) continue;
-			return song.id;
+			return Promise.resolve(metadatas);
+		} catch (error) {
+			this.client.emit('error', error);
+			return Promise.reject(error);
 		}
-		return null;
 	}
 
 	/**
@@ -197,113 +161,164 @@ class MusicManager {
 	 * @returns {Promise<VoiceConnection>}
 	 */
 	join(voiceChannel) {
-		return voiceChannel.join().catch((err) => {
-			if (String(err).includes('ECONNRESET')) throw 'There was an issue connecting to the voice channel, please try again.';
-			this.client.emit('error', err);
-			throw err;
+		const player = this.client.lavalink.join({
+			guild: this.guild.id,
+			channel: voiceChannel.id,
+			host: 'localhost'
 		});
+
+		this.player = player;
+		this.voiceChannel = voiceChannel;
+
+		return this;
 	}
 
 	/**
 	 * Leave the voice channel, reseating all the current data
 	 * @since 1.0.0
-	 * @returns {Promise<this>}
+	 * @returns {MusicManager}
 	 */
-	async leave() {
-		if (!this.voiceChannel) throw 'I already left the voice channel! You might want me to be in one in order to leave it...';
-		await this.voiceChannel.leave();
-		if (this.voiceChannel) this.forceDisconnect();
+	leave() {
+		if (this.player) this.player.stop().destroy();
+		this.client.lavalink.leave(this.guild.id);
 
 		// Reset the status
 		return this.clear();
 	}
 
-	async play() {
-		if (!this.voiceChannel) throw 'Where am I supposed to play the music? I am not in a voice channel!';
-		if (!this.connection) {
-			await this.channel.send(`This dj table isn't connected! Let me unplug and plug it again`)
-				.catch(error => this.client.emit('error', error));
-
-			const { voiceChannel } = this;
-			this.forceDisconnect();
-			await this.join(voiceChannel);
-			if (!this.connection) throw 'This dj table is broken! Try again later...';
-		}
-		if (!this.queue.length) throw 'No songs left in the queue!';
-
+	/**
+	 * Play the first song in the queue
+	 * @since 1.0.0
+	 * @returns {Player}
+	 */
+	play() {
 		const [song] = this.queue;
 
-		const stream = await ytdlDiscord(`https://youtu.be/${song.url}`);
+		if (song) {
+			this.player.play(song.track);
+			this.pushPlayed(song.info.uri);
+		}
 
-		this.connection.play(stream, {
-			bitrate: this.voiceChannel.bitrate / 1000,
-			passes: 5,
-			type: song.opus ? 'opus' : 'unknown',
-			volume: false
-		});
+		this.musicStart = new Date();
+		this.musicPauseAll = null;
+		this.musicPause = null;
 
-		this.pushPlayed(song.url);
-
-		return this.dispatcher;
+		return this.player;
 	}
 
+	/**
+	 * Push a song url to the recently played array
+	 * @since 1.0.0
+	 * @param {string} url The song url
+	 * @returns {void}
+	 */
 	pushPlayed(url) {
 		this.recentlyPlayed.push(url);
 		if (this.recentlyPlayed.length > 10) this.recentlyPlayed.shift();
 	}
 
+	/**
+	 * Pause the player
+	 * @since 1.0.0
+	 * @returns {MusicManager}
+	 */
 	pause() {
-		const { dispatcher } = this;
-		if (dispatcher) dispatcher.pause();
+		const { player } = this;
+		if (player) player.pause(true);
+		this.musicPause = new Date();
 		return this;
 	}
 
+	/**
+	 * Resume the player
+	 * @since 1.0.0
+	 * @returns {MusicManager}
+	 */
 	resume() {
-		const { dispatcher } = this;
-		if (dispatcher) dispatcher.resume();
+		const { player } = this;
+		if (player) player.pause(false);
+
+		if (this.musicPauseAll) this.musicPauseAll += (new Date()).getTime() - this.musicPause.getTime();
+		else this.musicPauseAll = (new Date()).getTime() - this.musicPause.getTime();
+
+		this.musicPause = null;
+
 		return this;
 	}
 
-	skip(force = false) {
-		const { dispatcher } = this;
-		if (force && dispatcher) dispatcher.end();
-		else this.queue.shift();
+	/**
+	 * Skip the current song
+	 * @since 1.0.0
+	 * @returns {MusicManager}
+	 */
+	skip() {
+		const { player } = this;
+
+		if (player) {
+			this.queue.shift();
+			this.play();
+		}
+
 		return this;
 	}
 
+	/**
+	 * Stop the player
+	 * @since 1.0.0
+	 * @returns {MusicManager}
+	 */
+	stop() {
+		const { player } = this;
+
+		if (player) {
+			this.player.stop();
+			this.clear();
+		}
+
+		this.musicStart = null;
+		this.musicPauseAll = null;
+		this.musicPause = null;
+
+		return this;
+	}
+
+	/**
+	 * Set the volume
+	 * @since 1.0.0
+	 * @param {number} vol The volume to set the player to
+	 * @returns {MusicManager}
+	 */
+	setVolume(vol) {
+		const { player } = this;
+		if (player) player.volume(vol);
+		return this;
+	}
+
+	/**
+	 * Prune the queue
+	 * @since 1.0.0
+	 * @returns {MusicManager}
+	 */
 	prune() {
 		this.queue.length = 0;
 		return this;
 	}
 
+	/**
+	 * Reset all values for this instance of MusicManager
+	 * @since 1.0.0
+	 * @returns {MusicManager}
+	 */
 	clear() {
 		this.recentlyPlayed.length = 0;
 		this.queue.length = 0;
-		this.channel = null;
-		this.autoplay = false;
-		this._next = null;
+		this.player = null;
+		this.voiceChannel = null;
+		this.musicStart = null;
+		this.musicPauseAll = null;
+		this.musicPause = null;
 
 		return this;
-	}
-
-	forceDisconnect() {
-		const { connection } = this;
-		if (connection) {
-			connection.disconnect();
-		} else {
-			/* eslint-disable camelcase */
-			this.guild.shard.send({
-				op: 4,
-				shard: this.client.shard ? this.client.shard.id : 0,
-				d: {
-					guild_id: this.guild.id,
-					channel_id: null,
-					self_mute: false,
-					self_deaf: false
-				}
-			});
-			/* eslint-enable camelcase */
-		}
 	}
 
 }

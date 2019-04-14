@@ -1,45 +1,29 @@
-const { MusicCommand, klasaUtil: { codeBlock } } = require('../../index');
+const { MusicCommand } = require('../../index');
 
 module.exports = class extends MusicCommand {
 
 	constructor(...args) {
 		super(...args, {
-			// Disabled until Krypton lands stable
-			enabled: false,
+			enabled: true,
 			aliases: ['vol'],
-			usage: '[control:string]',
+			usage: '[control:number]',
 			description: 'Manage the volume for current song.',
-			extendedHelp: [
-				"Let's break it down!",
-				'',
-				"Listen carefully, you use this command by doing either 'volume ++++' or 'volume ----'.",
-				"The more '+' you write, the more the volume will increment.",
-				"The more '-' you write, the more the volume will decrease.",
-				'',
-				'👌'
-			].join('\n'),
 			requireMusic: true
 		});
 	}
 
-	async run(msg, [vol]) {
-		const { dispatcher, playing } = msg.guild.music;
+	// eslint-disable-next-line consistent-return
+	run(msg, [vol]) {
+		const { playing } = msg.guild.music;
 		if (!playing) throw `The party isn't going on! One shouldn't touch the volume wheel without a song first!`;
 
-		if (!vol) return msg.sendMessage(`📢 Volume: ${Math.round(dispatcher.volume * 50)}%`);
-		if (/^[+]+$/.test(vol)) {
-			if (Math.round(dispatcher.volume * 50) >= 100) return msg.sendMessage(`📢 Volume: ${Math.round(dispatcher.volume * 50)}%`);
-			dispatcher.setVolume(Math.min(((dispatcher.volume * 50) + (2 * (vol.split('+').length - 1))) / 50, 2));
-			return msg.sendMessage(`${dispatcher.volume === 2 ? '📢' : '🔊'} Volume: ${Math.round(dispatcher.volume * 50)}%`);
-		}
+		if (vol === undefined) return msg.sendMessage(`📢 Volume: ${msg.guild.music.volume}%`);
 
-		if (/^[-]+$/.test(vol)) {
-			if (Math.round(dispatcher.volume * 50) <= 0) return msg.sendMessage(`🔇 Volume: ${Math.round(dispatcher.volume * 50)}%`);
-			dispatcher.setVolume(Math.max(((dispatcher.volume * 50) - (2 * (vol.split('-').length - 1))) / 50, 0));
-			return msg.sendMessage(`${dispatcher.volume === 0 ? '🔇' : '🔉'} Volume: ${Math.round(dispatcher.volume * 50)}%`);
-		}
+		if (vol < 0) throw "You can't set the volume less than 0%!";
+		else if (vol > 100) throw "You can't set the volume greater than 100%!";
 
-		throw `This command is quite analogic, but let me show you how you use this command:${codeBlock('', this.extendedHelp)}`;
+		msg.guild.music.setVolume(vol);
+		msg.sendMessage(`The volume has been set to ${vol}%!`);
 	}
 
 };

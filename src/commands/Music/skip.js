@@ -10,6 +10,7 @@ module.exports = class extends MusicCommand {
 		});
 	}
 
+	// eslint-disable-next-line consistent-return
 	async run(msg, [force]) {
 		const { music } = msg.guild;
 
@@ -23,9 +24,14 @@ module.exports = class extends MusicCommand {
 			}
 		}
 
-		await msg.sendMessage(`⏭ Skipped ${music.queue[0].title}`);
-		music.skip(true);
-		return null;
+		if (music.queue.length > 1) {
+			msg.sendMessage(`⏭ Skipped ${music.queue[0].info.title}`);
+			music.queue.shift();
+			music.play();
+		} else {
+			msg.sendMessage(`No songs left in the queue, leaving ${music.voiceChannel.name}!`);
+			music.leave();
+		}
 	}
 
 	handleSkips(musicInterface, user) {
