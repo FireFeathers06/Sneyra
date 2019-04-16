@@ -124,30 +124,38 @@ class MusicManager {
 		return null;
 	}
 
-	/**
-	 * Add a song to the queue
-	 * @since 1.0.0
-	 * @param {KlasaUser} user The user that requests this song
-	 * @param {string} url The url to add
-	 * @returns {Promise<SongMetadata>}
-	 */
-	async add(user, url) {
+	async fetchMetadata(query) {
 		const node = this.client.lavalink.nodes.first();
 
 		const params = new URLSearchParams();
-		params.append('identifier', url);
+		params.append('identifier', query);
 
 		try {
 			const metadatas = await fetch(`http://${node.host}:${node.port}/loadtracks?${params.toString()}`, { headers: { Authorization: node.password } })
 				.then(res => res.json())
 				.then(data => data.tracks);
 
+			return Promise.resolve(metadatas);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	/**
+	 * Add songs to the queue
+	 * @since 1.0.0
+	 * @param {KlasaUser} user The user that requests this song
+	 * @param {Array<any>} metadatas Array of metadatas from lavalink
+	 * @returns {MusicManager}
+	 */
+	add(user, metadatas) {
+		try {
 			metadatas.forEach(metadata => this.queue.push({
 				...metadata,
 				requester: user
 			}));
 
-			return Promise.resolve(metadatas);
+			return Promise.resolve(this);
 		} catch (error) {
 			this.client.emit('error', error);
 			return Promise.reject(error);

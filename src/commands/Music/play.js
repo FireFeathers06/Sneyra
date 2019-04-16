@@ -25,12 +25,11 @@ module.exports = class extends MusicCommand {
 			msg.channel.send(`🎧 Playing: **${song.info.title}** as requested by: **${song.requester.tag}**`);
 
 			music.play().on('end', (message) => {
-				music.queue.shift();
-
 				if (!music.queue.length) {
 					msg.channel.send('⏹ From 1 to 10, being 1 the worst score and 10 the best, how would you rate the session? It just ended!')
 						.then(() => music.leave());
-				} else if (music.queue.length > 1 && message.reason !== 'REPLACED') {
+				} else if (message.reason !== 'REPLACED') {
+					music.queue.shift();
 					music.play();
 				}
 			});
